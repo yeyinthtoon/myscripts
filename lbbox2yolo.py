@@ -8,6 +8,7 @@ from PIL import Image
 from rich import print as rich_print
 from collections import defaultdict
 
+
 def create_folder(folder_dir):
     if not folder_dir.exists():
         folder_dir.mkdir(parents=True)
@@ -44,16 +45,19 @@ def box_lbbox2yolo(
     for anno in annotations:
         annotation = json.loads(anno)
         image_name = annotation["data_row"]["external_id"]
-        image_path = image_dir / image_name
+        lbbox_id = annotation["data_row"]["id"]
+        image_path = image_dir / f"{lbbox_id}_{image_name}"
         if not image_path.exists():
             rich_print(
                 "[green]Image file not exist, Trying to download from labelbox[/green]"
             )
-        image = load_image(annotation["data_row"]["row_data"])
+            image = load_image(annotation["data_row"]["row_data"])
+        else:
+            image = Image.open(image_path)
         image_width, image_height = image.size
         image.save(image_path)
 
-        label_path = (label_dir / image_name).with_suffix(".txt")
+        label_path = (label_dir / image_path.name).with_suffix(".txt")
         yolo_annotations = []
         assert len(annotation["projects"][project_id]["labels"]) == 1, "case not handle"
         for instance in annotation["projects"][project_id]["labels"]:
@@ -62,8 +66,9 @@ def box_lbbox2yolo(
                 y = annotated_object["bounding_box"]["top"]
                 width = annotated_object["bounding_box"]["width"]
                 height = annotated_object["bounding_box"]["height"]
-                xc = (x + width) / 2
-                yc = (y + height) / 2
+
+                xc = x + width / 2
+                yc = y + height / 2
                 class_name = annotated_object["name"]
                 if class_name not in label_map:
                     if skip_unknown_label:
@@ -76,9 +81,12 @@ def box_lbbox2yolo(
                         )
                         raise typer.Exit()
                 class_id = label_map[class_name]
+
                 yolo_annotations.append(
                     f"{class_id} {xc/image_width} {yc/image_height} {width/image_width} {height/image_height}"
                 )
+                yolo_annotations.append(f"{class_id} {xc} {yc} {width} {height}")
+
         yolo_annotation = "\n".join(yolo_annotations)
         with open(label_path, "w", encoding="utf-8") as labelfile:
             labelfile.write(yolo_annotation)
