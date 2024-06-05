@@ -85,7 +85,6 @@ def box_lbbox2yolo(
                 yolo_annotations.append(
                     f"{class_id} {xc/image_width} {yc/image_height} {width/image_width} {height/image_height}"
                 )
-                yolo_annotations.append(f"{class_id} {xc} {yc} {width} {height}")
 
         yolo_annotation = "\n".join(yolo_annotations)
         with open(label_path, "w", encoding="utf-8") as labelfile:
